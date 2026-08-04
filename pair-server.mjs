@@ -171,6 +171,9 @@ export class PairShare {
         sessionId: this.sessionId,
       });
     }
+    if (request.method === "GET" && url.pathname === "/api/models") {
+      return this.#listModels(response);
+    }
     if (request.method === "GET" && url.pathname === "/api/events") {
       return this.#subscribe(request, response);
     }
@@ -182,6 +185,47 @@ export class PairShare {
     }
 
     throw new HttpError(404, "not_found", "Not found");
+  }
+
+  async #listModels(response) {
+    // Hosts without any model catalog source get an empty catalog, telling the
+    // browser to fall back to a free-text model field instead of failing.
+    const rpcModel = this.#session.rpc?.model;
+    let models = [];
+    let current;
+    try {
+      models = (await this.#modelCatalogEntries())
+        .filter((entry) => entry && typeof entry === "object" && typeof entry.id === "string" && entry.id)
+        .map((entry) => ({
+          id: entry.id,
+          name: typeof entry.name === "string" && entry.name ? entry.name : entry.id,
+        }));
+      const selected = rpcModel?.getCurrent ? await rpcModel.getCurrent() : undefined;
+      if (typeof selected?.modelId === "string" && selected.modelId) {
+        current = selected.modelId;
+      }
+    } catch {
+      models = [];
+      current = undefined;
+    }
+    sendJson(response, 200, { models, ...(current ? { current } : {}) });
+  }
+
+  async #modelCatalogEntries() {
+    const rpcModel = this.#session.rpc?.model;
+    if (typeof rpcModel?.list === "function") {
+      const catalog = await rpcModel.list();
+      return catalog?.list ?? [];
+    }
+    // Copilot CLI 1.0.34 does not implement session.model.list; its own model
+    // picker uses the client-level models.list RPC, reachable through the
+    // session's connection. Drop this once shipped CLIs expose rpc.model.list.
+    const connection = this.#session.connection;
+    if (connection && typeof connection.sendRequest === "function") {
+      const result = await connection.sendRequest("models.list", {});
+      return result?.models ?? [];
+    }
+    return [];
   }
 
   #subscribe(request, response) {

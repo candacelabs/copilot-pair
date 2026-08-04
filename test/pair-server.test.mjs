@@ -29,6 +29,16 @@ class FakeSession {
         return { handled: true };
       },
     },
+    model: {
+      list: async () => ({
+        list: [
+          { id: "gpt-5.4", name: "GPT-5.4", capabilities: {} },
+          { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", capabilities: {} },
+          { name: "malformed-entry-without-id" },
+        ],
+      }),
+      getCurrent: async () => ({ modelId: "gpt-5.4" }),
+    },
   };
 
   async getMessages() {
@@ -102,6 +112,79 @@ test("the share URL exposes the browser and API without accounts or auth", async
   const metadata = await fetch(new URL("api/meta", baseUrl));
   assert.equal(metadata.status, 200);
   assert.equal((await metadata.json()).sessionId, "11111111-2222-4333-8444-555555555555");
+});
+
+test("the model catalog lists usable models with the current selection", async (t) => {
+  const { baseUrl } = await startShare(t);
+  const response = await fetch(new URL("api/models", baseUrl));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    models: [
+      { id: "gpt-5.4", name: "GPT-5.4" },
+      { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
+    ],
+    current: "gpt-5.4",
+  });
+});
+
+test("CLI hosts without session.model.list use the client-level models.list RPC", async (t) => {
+  const session = new FakeSession();
+  session.rpc.model = {
+    getCurrent: async () => ({ modelId: "claude-sonnet-4.6" }),
+  };
+  const requests = [];
+  session.connection = {
+    sendRequest: async (method, params) => {
+      requests.push([method, params]);
+      return {
+        models: [
+          { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", capabilities: {} },
+        ],
+      };
+    },
+  };
+
+  const share = new PairShare(session, {
+    listenHost: "127.0.0.1",
+    publicHost: "127.0.0.1",
+    port: 0,
+    publicUrl: undefined,
+  });
+  const status = await share.start();
+  t.after(() => share.stop());
+
+  const response = await fetch(new URL("api/models", status.link));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    models: [{ id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" }],
+    current: "claude-sonnet-4.6",
+  });
+  assert.deepEqual(requests, [["models.list", {}]]);
+});
+
+test("hosts without model RPCs degrade to an empty catalog", async (t) => {
+  const withoutRpc = new FakeSession();
+  delete withoutRpc.rpc.model;
+  const failing = new FakeSession();
+  failing.rpc.model = {
+    list: async () => {
+      throw new Error("unsupported");
+    },
+  };
+
+  for (const session of [withoutRpc, failing]) {
+    const share = new PairShare(session, {
+      listenHost: "127.0.0.1",
+      publicHost: "127.0.0.1",
+      port: 0,
+      publicUrl: undefined,
+    });
+    const status = await share.start();
+    t.after(() => share.stop());
+    const response = await fetch(new URL("api/models", status.link));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { models: [] });
+  }
 });
 
 test("any connected peer can prompt, steer, abort, and change model", async (t) => {

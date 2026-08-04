@@ -9,7 +9,9 @@ person who started Copilot owns the process; every connected browser can:
 - stop the current turn;
 - approve or deny tool requests;
 - see questions and plan-review requests as they happen; and
-- change the session model.
+- change the session model, picked from a dropdown of the models the session
+  can actually use (with a free-text fallback when the host CLI cannot list
+  models).
 
 ## Run it
 

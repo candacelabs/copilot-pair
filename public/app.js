@@ -7,7 +7,7 @@ const sessionIdLabel = document.querySelector("#session-id");
 const peerCount = document.querySelector("#peer-count");
 const eventCount = document.querySelector("#event-count");
 const actorInput = document.querySelector("#actor");
-const modelInput = document.querySelector("#model");
+let modelControl = document.querySelector("#model");
 const promptInput = document.querySelector("#prompt");
 const statusLabel = document.querySelector("#action-status");
 
@@ -31,7 +31,7 @@ document.querySelector("#send").addEventListener("click", () => sendPrompt("enqu
 document.querySelector("#steer").addEventListener("click", () => sendPrompt("immediate"));
 document.querySelector("#abort").addEventListener("click", () => runAction({ type: "abort" }, "Stopping…"));
 document.querySelector("#change-model").addEventListener("click", () => {
-  const model = modelInput.value.trim();
+  const model = modelControl.value.trim();
   if (model) {
     void runAction({ type: "model", model }, `Switching to ${model}…`);
   }
@@ -44,6 +44,58 @@ promptInput.addEventListener("keydown", (event) => {
 });
 
 connect();
+void loadModels();
+
+async function loadModels() {
+  try {
+    const response = await fetch("/api/models");
+    if (!response.ok) {
+      throw new Error("model catalog unavailable");
+    }
+    const catalog = await response.json();
+    if (!Array.isArray(catalog.models) || catalog.models.length === 0) {
+      throw new Error("model catalog empty");
+    }
+    modelControl.replaceChildren();
+    for (const model of catalog.models) {
+      const option = document.createElement("option");
+      option.value = model.id;
+      option.textContent = model.name || model.id;
+      modelControl.append(option);
+    }
+    if (catalog.current) {
+      selectModel(catalog.current);
+    }
+  } catch {
+    useModelTextFallback();
+  }
+}
+
+function selectModel(id) {
+  if (modelControl.tagName !== "SELECT") {
+    modelControl.value = id;
+    return;
+  }
+  if (![...modelControl.options].some((option) => option.value === id)) {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = id;
+    modelControl.append(option);
+  }
+  modelControl.value = id;
+}
+
+function useModelTextFallback() {
+  if (modelControl.tagName === "INPUT") {
+    return;
+  }
+  const input = document.createElement("input");
+  input.id = "model";
+  input.placeholder = "model id";
+  input.disabled = modelControl.disabled;
+  modelControl.replaceWith(input);
+  modelControl = input;
+}
 
 function connect() {
   setConnection("connecting", "Connecting");
@@ -65,6 +117,13 @@ function connect() {
   source.addEventListener("session-event", (message) => {
     const payload = JSON.parse(message.data);
     mergeEvent(payload.event, payload.durable);
+    if (
+      payload.event?.type === "session.model_change"
+      && typeof payload.event.data?.newModel === "string"
+      && payload.event.data.newModel
+    ) {
+      selectModel(payload.event.data.newModel);
+    }
     if (payload.durable) {
       persistReplicaSoon();
     }
@@ -292,12 +351,22 @@ async function sendPrompt(delivery) {
   }
 }
 
+function actionId() {
+  // crypto.randomUUID only exists in secure contexts; the pair link is plain
+  // http on a LAN address, so build the id from getRandomValues instead.
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 async function runAction(action, pendingMessage) {
   statusLabel.textContent = pendingMessage;
   const response = await fetch("/api/actions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: crypto.randomUUID(), ...action }),
+    body: JSON.stringify({ id: actionId(), ...action }),
   });
   const payload = await response.json();
   if (!response.ok) {
