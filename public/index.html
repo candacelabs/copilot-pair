@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Candace Pair</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Shared session</p>
+        <h1>Copilot Pair</h1>
+      </div>
+      <div class="connection">
+        <span id="connection-dot" class="dot"></span>
+        <span id="connection-label">Connecting</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="session-strip" aria-label="Session information">
+        <span>Session <code id="session-id">—</code></span>
+        <span><strong id="peer-count">0</strong> connected</span>
+        <span><strong id="event-count">0</strong> synced events</span>
+      </section>
+
+      <section id="pending" class="pending" aria-live="polite"></section>
+
+      <section class="transcript-shell">
+        <div id="transcript" class="transcript" aria-live="polite"></div>
+        <article id="streaming" class="message assistant streaming" hidden>
+          <p class="message-label">Copilot</p>
+          <pre></pre>
+        </article>
+      </section>
+
+      <section class="composer" aria-label="Control the shared session">
+        <div class="composer-meta">
+          <label>
+            Your label
+            <input id="actor" maxlength="64" value="Guest">
+          </label>
+          <label class="model-label">
+            Model
+            <span class="model-control">
+              <input id="model" placeholder="model id">
+              <button id="change-model" class="quiet" type="button">Change</button>
+            </span>
+          </label>
+        </div>
+
+        <label class="prompt-label" for="prompt">Message the shared Copilot session</label>
+        <textarea id="prompt" rows="5" autofocus
+          placeholder="Ask Copilot to inspect, edit, run, or explain something…"></textarea>
+        <div class="composer-actions">
+          <p id="action-status" role="status">Everyone on this page has equal control.</p>
+          <button id="abort" class="danger" type="button">Stop current work</button>
+          <button id="steer" class="secondary" type="button">Steer now</button>
+          <button id="send" class="primary" type="button">Send</button>
+        </div>
+      </section>
+    </main>
+
+    <template id="empty-template">
+      <div class="empty-state">
+        <p class="eyebrow">Shared session</p>
+        <h2>Nothing here yet</h2>
+        <p>Send a prompt below. Every connected peer will see the same resulting history.</p>
+      </div>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

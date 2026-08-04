@@ -1,0 +1,9 @@
+{
+  "destination_repository": "candacelabs/copilot-pair",
+  "managed_by": "candace-component-export",
+  "schema_version": 2,
+  "source_path": ".github/extensions/candace-pair",
+  "source_repository": "kaashmonee/candace-server",
+  "source_revision": "95763d1dcaea20f18831b84a064a5607bf28acad",
+  "source_tree_oid": "7f4c131d93978ea1e40f551e1ad95ebe1a5225d8"
+}
