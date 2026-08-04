@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PairShare, defaultPairOptions } from "../pair-server.mjs";
+import { GROUP_CHAT_PREAMBLE, PairShare, defaultPairOptions } from "../pair-server.mjs";
 
 function sdkEvent(id, type, data = {}, ephemeral = false) {
   return {
@@ -202,7 +202,7 @@ test("any connected peer can prompt, steer, abort, and change model", async (t) 
   assert.equal(first.response.status, 200);
   assert.deepEqual(duplicate.payload, first.payload);
   assert.deepEqual(session.sent, [{
-    prompt: "Billy: Fix the test",
+    prompt: `${GROUP_CHAT_PREAMBLE}\n\nBilly: Fix the test`,
     mode: "enqueue",
   }]);
 
@@ -214,11 +214,36 @@ test("any connected peer can prompt, steer, abort, and change model", async (t) 
     delivery: "immediate",
   });
   assert.equal(session.sent[1].mode, "immediate");
+  assert.equal(session.sent[1].prompt, "Billy: Use the smaller approach");
 
   await postAction(baseUrl, { id: "action-abort-1", type: "abort" });
   await postAction(baseUrl, { id: "action-model-1", type: "model", model: "gpt-5.4" });
   assert.equal(session.aborted, 1);
   assert.deepEqual(session.models, ["gpt-5.4"]);
+});
+
+test("the group-chat context is seeded exactly once, on the first shared prompt", async (t) => {
+  const { baseUrl, session } = await startShare(t);
+
+  await postAction(baseUrl, {
+    id: "action-seed-1", type: "prompt", actor: "Ada", prompt: "First question",
+  });
+  await postAction(baseUrl, {
+    id: "action-seed-2", type: "prompt", actor: "Grace", prompt: "Second question",
+  });
+
+  assert.equal(session.sent[0].prompt, `${GROUP_CHAT_PREAMBLE}\n\nAda: First question`);
+  assert.equal(session.sent[1].prompt, "Grace: Second question");
+  assert.ok(GROUP_CHAT_PREAMBLE.startsWith("[Copilot Pair]"));
+  assert.ok(!GROUP_CHAT_PREAMBLE.includes("\n"));
+});
+
+test("the browser assets include the rich-text renderer module", async (t) => {
+  const { baseUrl } = await startShare(t);
+  const module = await fetch(new URL("renderer.js", baseUrl));
+  assert.equal(module.status, 200);
+  assert.match(module.headers.get("content-type"), /text\/javascript/);
+  assert.match(await module.text(), /renderRichText/);
 });
 
 test("any connected peer can resolve Copilot permission requests", async (t) => {

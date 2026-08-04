@@ -1,8 +1,13 @@
 # Copilot Pair
 
 Copilot Pair shares the foreground GitHub Copilot CLI session with everyone at
-one URL. There are no accounts, participant roles, or separate rooms. The
-person who started Copilot owns the process; every connected browser can:
+one URL, as a group chat. There are no accounts, participant roles, or separate
+rooms.
+
+![The shared transcript: a permission request, name-prefixed group messages, rendered math and code, and paired tool cards](screenshots/transcript.png)
+
+The person who started Copilot owns the process; every connected browser
+can:
 
 - watch the transcript and streaming response in real time;
 - send a queued prompt or steer the current turn immediately;
@@ -12,6 +17,36 @@ person who started Copilot owns the process; every connected browser can:
 - change the session model, picked from a dropdown of the models the session
   can actually use (with a free-text fallback when the host CLI cannot list
   models).
+
+## Group chat, not one-on-one
+
+Every browser prompt is relayed as `Name: message` using the name box in the
+composer, and messages typed in the owner's terminal appear unprefixed as
+"Owner". The very first browser prompt after the extension loads carries a
+one-time preamble (visible once in the transcript and owner CLI) telling
+Copilot that this is a shared group session with name-prefixed messages from
+different people, so it does not treat interleaved prompts as one person's
+train of thought.
+
+## Rendering
+
+The transcript renders Markdown (marked), TeX math in `$…$`, `$$…$$`, `\(…\)`,
+or `\[…\]` form (KaTeX via marked-katex-extension), and syntax-highlighted
+code blocks with a copy button (highlight.js), with all rendered HTML passed
+through DOMPurify. The libraries are standard builds fetched lazily from
+jsDelivr — pinned versions with subresource integrity, nothing bundled or
+installed. When the CDN is unreachable the transcript falls back to plain
+text and every session control keeps working. Tool calls collapse into
+expandable cards that pair each start with its result (failures expand
+automatically).
+
+Composer keys: **Enter** sends, **Shift+Enter** inserts a newline, and
+**Ctrl+Enter** (or Cmd+Enter) steers the current turn immediately.
+
+![Copilot streaming a response live into the group transcript](screenshots/streaming.png)
+
+(The screenshots are stored with Git LFS; in the monorepo they render only
+after `git lfs pull`.)
 
 ## Run it
 
@@ -88,8 +123,9 @@ the owner CLI.
 
 ## Test
 
-No install step or third-party JavaScript dependency is required. Copilot CLI
-supplies `@github/copilot-sdk/extension` when it launches the extension.
+No install step is required: Copilot CLI supplies
+`@github/copilot-sdk/extension` when it launches the extension, and the
+browser rendering libraries load from the CDN at runtime.
 
 ```bash
 cd .github/extensions/candace-pair

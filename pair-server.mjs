@@ -9,6 +9,19 @@ import { GrowOnlyEventSet } from "./event-set.mjs";
 const ASSET_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), "public");
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
+// Sent once, ahead of the first browser prompt, so the model knows it is in a
+// shared group session rather than a one-on-one conversation. Single line: the
+// browser UI strips everything before the first blank line when displaying
+// that message. The "[Copilot Pair]" marker must match GROUP_PREAMBLE_MARKER
+// in public/app.js.
+export const GROUP_CHAT_PREAMBLE = "[Copilot Pair] Heads up: this session is a shared group chat, not a"
+  + " conversation with one person. Several people are connected to this one Copilot session from their"
+  + " browsers. Each relayed message starts with the sender's name, like \"Ada: can you profile this?\";"
+  + " that name prefix is metadata added by the relay, not text the sender typed. Messages without a name"
+  + " prefix come from the session owner typing in the terminal. Different messages may come from"
+  + " different people with different goals, so do not assume consecutive messages share one author or"
+  + " intent, and address people by name when replying to a specific request.";
+
 export class PairShare {
   #session;
   #options;
@@ -19,6 +32,7 @@ export class PairShare {
   #server;
   #keepAlive;
   #link;
+  #groupContextSent = false;
 
   constructor(session, options = {}) {
     if (!session || typeof session.send !== "function") {
@@ -161,6 +175,9 @@ export class PairShare {
     if (request.method === "GET" && url.pathname === "/app.js") {
       return serveAsset(response, "app.js", "text/javascript; charset=utf-8");
     }
+    if (request.method === "GET" && url.pathname === "/renderer.js") {
+      return serveAsset(response, "renderer.js", "text/javascript; charset=utf-8");
+    }
     if (request.method === "GET" && url.pathname === "/styles.css") {
       return serveAsset(response, "styles.css", "text/css; charset=utf-8");
     }
@@ -287,10 +304,12 @@ export class PairShare {
         const prompt = requiredText(action.prompt, "prompt", 64 * 1024);
         const actor = optionalText(action.actor, "actor", 64) || "Guest";
         const delivery = action.delivery === "immediate" ? "immediate" : "enqueue";
+        const attributed = `${actor}: ${prompt}`;
         const messageId = await this.#session.send({
-          prompt: `${actor}: ${prompt}`,
+          prompt: this.#groupContextSent ? attributed : `${GROUP_CHAT_PREAMBLE}\n\n${attributed}`,
           mode: delivery,
         });
+        this.#groupContextSent = true;
         return { ok: true, actionId: action.id, messageId };
       }
       case "abort":

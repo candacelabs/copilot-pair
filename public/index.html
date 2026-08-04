@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Candace Pair</title>
+    <title>Copilot Pair</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Shared session</p>
+        <p class="eyebrow">Shared group session</p>
         <h1>Copilot Pair</h1>
       </div>
       <div class="connection">
@@ -30,15 +30,19 @@
       <section class="transcript-shell">
         <div id="transcript" class="transcript" aria-live="polite"></div>
         <article id="streaming" class="message assistant streaming" hidden>
-          <p class="message-label">Copilot</p>
-          <pre></pre>
+          <p class="message-label">
+            <span class="chip copilot">✦</span>
+            <span class="actor-name">Copilot</span>
+            <span class="typing">responding…</span>
+          </p>
+          <div class="md stream-body"></div>
         </article>
       </section>
 
       <section class="composer" aria-label="Control the shared session">
         <div class="composer-meta">
           <label>
-            Your label
+            Your name
             <input id="actor" maxlength="64" value="Guest">
           </label>
           <label class="model-label">
@@ -52,11 +56,11 @@
           </label>
         </div>
 
-        <label class="prompt-label" for="prompt">Message the shared Copilot session</label>
-        <textarea id="prompt" rows="5" autofocus
-          placeholder="Ask Copilot to inspect, edit, run, or explain something…"></textarea>
+        <label class="prompt-label" for="prompt">Message the group's shared Copilot session</label>
+        <textarea id="prompt" rows="3" autofocus
+          placeholder="Write to the group — Markdown, ``` code ``` and $math$ render for everyone…"></textarea>
         <div class="composer-actions">
-          <p id="action-status" role="status">Everyone on this page has equal control.</p>
+          <p id="action-status" role="status">Enter to send · Shift+Enter for a new line · Ctrl+Enter to steer mid-turn</p>
           <button id="abort" class="danger" type="button">Stop current work</button>
           <button id="steer" class="secondary" type="button">Steer now</button>
           <button id="send" class="primary" type="button">Send</button>
@@ -66,9 +70,9 @@
 
     <template id="empty-template">
       <div class="empty-state">
-        <p class="eyebrow">Shared session</p>
+        <p class="eyebrow">Group chat</p>
         <h2>Nothing here yet</h2>
-        <p>Send a prompt below. Every connected peer will see the same resulting history.</p>
+        <p>Everyone at this URL shares one Copilot session. Say something below — prompts, replies, code, and math show up here for the whole group.</p>
       </div>
     </template>
 
